@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSMIC TERMINAL - ASTRO LINGUA</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;900&family=Share+Tech+Mono&family=Noto+Sans+JP:wght@100;300;900&display=swap');
+
+        :root {
+            --accent: #e0f2fe;
+            --deep: #050a10;
+            --glass: rgba(15, 23, 42, 0.8);
+            --border: rgba(224, 242, 254, 0.2);
+            --glow: #38bdf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        body {
+            background-color: var(--deep);
+            color: var(--accent);
+            font-family: 'Share Tech Mono', 'Noto Sans JP', monospace;
+            overflow: hidden;
+            height: 100vh;
+            cursor: crosshair;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            filter: blur(1px);
+        }
+
+        /* UI Layer */
+        .ui-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 80px 1fr 150px;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / 4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+        }
+
+        .system-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            letter-spacing: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        /* Left Side: Signal Stream */
+        .sidebar-left {
+            grid-row: 2 / 3;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-label {
+            background: var(--border);
+            padding: 5px 15px;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+        }
+
+        #signal-stream {
+            flex: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .signal-item {
+            padding: 12px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            animation: slideIn 0.3s ease-out;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .signal-item:hover {
+            background: var(--glow);
+            color: var(--deep);
+            border-color: #fff;
+            transform: translateX(10px);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Main View: Star Chart */
+        .main-view {
+            grid-row: 2 / 3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .astrolabe {
+            width: 500px;
+            height: 500px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+
+        .astrolabe::before {
+            content: '';
+            position: absolute;
+            width: 110%;
+            height: 110%;
+            border: 1px dashed var(--border);
+            border-radius: 50%;
+            animation: rotate 60s linear infinite;
+        }
+
+        @keyframes rotate { to { transform: rotate(360deg); } }
+
+        .star-core {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, #fff 0%, var(--glow) 50%, transparent 100%);
+            border-radius: 50%;
+            filter: blur(5px);
+            box-shadow: 0 0 50px var(--glow);
+            animation: pulse 4s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.9); opacity: 0.5; }
+            to { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        /* Right Side: Data Terminal */
+        .sidebar-right {
+            grid-row: 2 / 3;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #data-log {
+            flex: 1;
+            padding: 15px;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            color: var(--glow);
+            overflow-y: auto;
+        }
+
+        /* Footer: Progress */
+        footer {
+            grid-column: 1 / 4;
+            background: var(--glass);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 40px;
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+        }
+
+        .progress-container {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #sync-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--glow), #fff);
+            box-shadow: 0 0 20px var(--glow);
+            transition: width 0.4s ease;
+        }
+
+        /* Results Overlay */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--deep);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            cursor: pointer;
+            font-family: 'Cinzel';
+            letter-spacing: 5px;
+            transition: 0.3s;
+        }
+
+        .btn:hover { background: var(--accent); color: var(--deep); }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="star-canvas"></canvas>
+
+    <div class="ui-container">
+        <header>
+            <div class="system-title">COSMIC TERMINAL</div>
+            <div id="clock">00:00:00</div>
+            <div style="font-size: 0.7rem; letter-spacing: 2px;">MODEL: ASTRO-LINGUA V1.0</div>
+        </header>
+
+        <aside class="sidebar-left">
+            <div class="sidebar-label">SIGNAL STREAM [INBOUND]</div>
+            <div id="signal-stream"></div>
+        </aside>
+
+        <main class="main-view">
+            <div class="astrolabe" id="astrolabe">
+                <div class="star-core"></div>
+                <!-- 収集された星がここに配置される -->
+            </div>
+        </main>
+
+        <aside class="sidebar-right">
+            <div class="sidebar-label">DATA TERMINAL [DECODED]</div>
+            <div id="data-log">> SYSTEM READY.<br>> AWAITING SIGNAL INPUT...</div>
+        </aside>
+
+        <footer>
+            <div class="progress-meta">
+                <span>CONSTELLATION SYNC RATE</span>
+                <span id="sync-percent">0.00%</span>
+            </div>
+            <div class="progress-container">
+                <div id="sync-bar"></div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="overlay">
+        <h1 style="font-family: Cinzel; font-size: 3rem; margin-bottom: 10px;">MISSION COMPLETE</h1>
+        <p style="letter-spacing: 4px; opacity: 0.7;">STAR MAP RECONSTRUCTED</p>
+        <button class="btn" onclick="location.reload()">REBOOT SYSTEM</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('star-canvas');
+        const ctx = canvas.getContext('2d');
+        const signalStream = document.getElementById('signal-stream');
+        const dataLog = document.getElementById('data-log');
+        const syncBar = document.getElementById('sync-bar');
+        const syncPercent = document.getElementById('sync-percent');
+        const astrolabe = document.getElementById('astrolabe');
+
+        let state = {
+            sync: 0,
+            activeSignals: [],
+            isComplete: false
+        };
+
+        const glyphs = ["Ω", "Ψ", "Δ", "Ξ", "Φ", "Λ", "Σ", "Π"];
+        const cosmosData = [
+            "Ancient star cluster detected in Sector 7.",
+            "Gravitational wave interference matching Alpha-Centauri.",
+            "Hydrogen-line shift detected at 1420MHz.",
+            "Non-linear temporal anomaly observed.",
+            "Interstellar dust density increasing.",
+            "Supernova remnant identified in Nebula X.",
+            "Binary star system synchronization complete.",
+            "Dark matter filaments mapped in void space."
+        ];
+
+        // 1. Background Astronomy
+        let stars = [];
+        function initStars() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            stars = [];
+            for (let i = 0; i < 400; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.5,
+                    opacity: Math.random()
+                });
+            }
+        }
+
+        function drawStars() {
+            ctx.fillStyle = '#050a10';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(s => {
+                ctx.fillStyle = `rgba(224, 242, 254, ${s.opacity})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+                s.opacity += (Math.random() - 0.5) * 0.05;
+                if (s.opacity < 0) s.opacity = 0;
+                if (s.opacity > 1) s.opacity = 1;
+            });
+            requestAnimationFrame(drawStars);
+        }
+
+        // 2. Language Signal Generation
+        function generateSignal() {
+            if (state.isComplete) return;
+            
+            const item = document.createElement('div');
+            item.className = 'signal-item';
+            const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+            const code = Math.random().toString(16).substring(2, 8).toUpperCase();
+            item.innerHTML = `[ ${glyph} ] : SRC_${code}`;
+            
+            item.onclick = () => decodeSignal(glyph, item);
+            
+            signalStream.prepend(item);
+            if (signalStream.childNodes.length > 12) {
+                signalStream.removeChild(signalStream.lastChild);
+            }
+
+            setTimeout(generateSignal, Math.max(400, 1500 - (state.sync * 10)));
+        }
+
+        // 3. Game/Information Logic
+        function decodeSignal(glyph, element) {
+            if (state.isComplete) return;
+            
+            element.style.pointerEvents = 'none';
+            element.style.opacity = '0.5';
+            element.style.transform = 'translateX(100px)';
+            
+            // Sync Increase
+            state.sync += 2.5;
+            if (state.sync >= 100) {
+                state.sync = 100;
+                finishMission();
+            }
+            
+            updateUI();
+            
+            // Add Data to Log
+            const info = cosmosData[Math.floor(Math.random() * cosmosData.length)];
+            const logEntry = document.createElement('div');
+            logEntry.style.marginBottom = '10px';
+            logEntry.innerHTML = `> DECODED [${glyph}]<br><span style="color:#fff">${info}</span>`;
+            dataLog.prepend(logEntry);
+
+            // Add Star to Astrolabe
+            createStarNode();
+        }
+
+        function createStarNode() {
+            const node = document.createElement('div');
+            node.style.position = 'absolute';
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 50 + Math.random() * 180;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            node.style.width = '4px';
+            node.style.height = '4px';
+            node.style.background = '#fff';
+            node.style.borderRadius = '50%';
+            node.style.boxShadow = '0 0 10px #fff';
+            node.style.left = `calc(50% + ${x}px)`;
+            node.style.top = `calc(50% + ${y}px)`;
+            node.style.transition = 'all 1s ease-out';
+            node.style.opacity = '0';
+            
+            astrolabe.appendChild(node);
+            setTimeout(() => node.style.opacity = '1', 10);
+        }
+
+        function updateUI() {
+            syncBar.style.width = state.sync + "%";
+            syncPercent.textContent = state.sync.toFixed(2) + "%";
+        }
+
+        function finishMission() {
+            state.isComplete = true;
+            setTimeout(() => {
+                document.getElementById('overlay').style.display = 'flex';
+            }, 1000);
+        }
+
+        // 4. Utility
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toTimeString().split(' ')[0];
+        }
+
+        // Mouse Parallax
+        document.addEventListener('mousemove', (e) => {
+            const moveX = (e.clientX - window.innerWidth / 2) / 50;
+            const moveY = (e.clientY - window.innerHeight / 2) / 50;
+            astrolabe.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        });
+
+        window.onload = () => {
+            initStars();
+            drawStars();
+            generateSignal();
+            setInterval(updateClock, 1000);
+        };
+    </script>
+</body>
+</html>
